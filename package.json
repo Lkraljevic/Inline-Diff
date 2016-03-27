@@ -1,0 +1,27 @@
+{
+  "directories": {
+    "lib": "build"
+  },
+  "scripts": {
+    "build": "gulp build"
+  },
+  "jspm": {
+    "dependencies": {
+      "codemirror": "npm:codemirror@^5.12.0",
+      "css": "github:systemjs/plugin-css@^0.1.20",
+      "diff-match-patch": "npm:diff-match-patch@^1.0.0"
+    },
+    "devDependencies": {
+      "babel": "npm:babel-core@^5.8.24",
+      "babel-runtime": "npm:babel-runtime@^5.8.24",
+      "clean-css": "npm:clean-css@^3.4.9",
+      "core-js": "npm:core-js@^1.1.4"
+    }
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-jspm": "^0.5.8",
+    "gulp-rename": "^1.2.2",
+    "gulp-sync": "^0.1.4"
+  }
+}

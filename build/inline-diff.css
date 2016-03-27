@@ -1,0 +1,16 @@
+.CodeMirror-linenumbers-basetext, .CodeMirror-linenumbers-newtext {
+    width: 0px;
+}
+
+.delete {
+    background-color: #FFDDDD;
+}
+.insert {
+    background-color: #C3FFC1;
+}
+.del {
+    background-color: #FFAAAA;
+}
+.ins {
+    background-color: #AAFFAA;
+}
