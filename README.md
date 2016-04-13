@@ -1,4 +1,4 @@
-# Inline-Diff
+## Inline-Diff
 JavaScript inline visual diff tool. Based on [CodeMirror](https://codemirror.net/). 
 This depends on the [google-diff-match-patch](https://code.google.com/archive/p/google-diff-match-patch/) library to compute the diffs.
 ## Usage
