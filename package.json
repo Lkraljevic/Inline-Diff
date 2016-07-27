@@ -1,6 +1,6 @@
 {
   "directories": {
-    "lib": "build"
+    "lib": "lib"
   },
   "scripts": {
     "build": "gulp build"
