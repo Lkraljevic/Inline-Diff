@@ -25,3 +25,12 @@
 .CodeMirror-merge-collapsed-widget:before {
   content: "(...)";
 }
+
+.editor-display {
+  height: 100%;
+  overflow: auto;  
+}
+
+.editor-display .CodeMirror {
+  height: 100%;
+}
