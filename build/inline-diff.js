@@ -735,8 +735,8 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
           updateHeightsInViewport(cm);
           var barMeasure = measureForScrollbars(cm);
           updateSelection(cm);
-          setDocumentHeight(cm, barMeasure);
           updateScrollbars(cm, barMeasure);
+          setDocumentHeight(cm, barMeasure);
         }
         update.signal(cm, "update", cm);
         if (cm.display.viewFrom != cm.display.reportedViewFrom || cm.display.viewTo != cm.display.reportedViewTo) {
@@ -752,15 +752,15 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
           postUpdateDisplay(cm, update);
           var barMeasure = measureForScrollbars(cm);
           updateSelection(cm);
-          setDocumentHeight(cm, barMeasure);
           updateScrollbars(cm, barMeasure);
+          setDocumentHeight(cm, barMeasure);
           update.finish();
         }
       }
       function setDocumentHeight(cm, measure) {
         cm.display.sizer.style.minHeight = measure.docHeight + "px";
         cm.display.heightForcer.style.top = measure.docHeight + "px";
-        cm.display.gutters.style.height = Math.max(measure.docHeight + cm.display.barHeight + scrollGap(cm), measure.clientHeight) + "px";
+        cm.display.gutters.style.height = (measure.docHeight + cm.display.barHeight + scrollGap(cm)) + "px";
       }
       function updateHeightsInViewport(cm) {
         var display = cm.display;
@@ -2201,13 +2201,13 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
                 var near = m.find(dir < 0 ? 1 : -1),
                     diff;
                 if (dir < 0 ? m.inclusiveRight : m.inclusiveLeft)
-                  near = movePos(doc, near, -dir, line);
+                  near = movePos(doc, near, -dir, near && near.line == pos.line ? line : null);
                 if (near && near.line == pos.line && (diff = cmp(near, oldPos)) && (dir < 0 ? diff < 0 : diff > 0))
                   return skipAtomicInner(doc, near, pos, dir, mayClear);
               }
               var far = m.find(dir < 0 ? -1 : 1);
               if (dir < 0 ? m.inclusiveLeft : m.inclusiveRight)
-                far = movePos(doc, far, dir, line);
+                far = movePos(doc, far, dir, far.line == pos.line ? line : null);
               return far ? skipAtomicInner(doc, far, pos, dir, mayClear) : null;
             }
           }
@@ -2249,6 +2249,8 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
           if (primary === false && i == doc.sel.primIndex)
             continue;
           var range = doc.sel.ranges[i];
+          if (range.from().line >= cm.display.viewTo || range.to().line < cm.display.viewFrom)
+            continue;
           var collapsed = range.empty();
           if (collapsed || cm.options.showCursorWhenSelecting)
             drawSelectionCursor(cm, range.head, curFragment);
@@ -3093,10 +3095,10 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
         }
         if (op.preparedSelection)
           cm.display.input.showSelection(op.preparedSelection);
-        if (op.updatedDisplay)
-          setDocumentHeight(cm, op.barMeasure);
         if (op.updatedDisplay || op.startHeight != cm.doc.height)
           updateScrollbars(cm, op.barMeasure);
+        if (op.updatedDisplay)
+          setDocumentHeight(cm, op.barMeasure);
         if (op.selectionChanged)
           restartBlink(cm);
         if (cm.state.focused && op.updateInput)
@@ -3479,8 +3481,10 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
             onDragStart(cm, e);
           },
           drop: operation(cm, onDrop),
-          leave: function() {
-            clearDragCursor(cm);
+          leave: function(e) {
+            if (!signalDOMEvent(cm, e)) {
+              clearDragCursor(cm);
+            }
           }
         };
         var inp = d.input.getField();
@@ -7952,7 +7956,7 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
             if (spans)
               for (var i = 0; i < spans.length; i++) {
                 var span = spans[i];
-                if (!(lineNo == from.line && from.ch > span.to || span.from == null && lineNo != from.line || lineNo == to.line && span.from > to.ch) && (!filter || filter(span.marker)))
+                if (!(span.to != null && lineNo == from.line && from.ch > span.to || span.from == null && lineNo != from.line || span.from != null && lineNo == to.line && span.from > to.ch) && (!filter || filter(span.marker)))
                   found.push(span.marker.parent || span.marker);
               }
             ++lineNo;
@@ -9232,7 +9236,7 @@ $__System.registerDynamic("8", ["9"], true, function($__require, exports, module
           return order;
         };
       })();
-      CodeMirror.version = "5.12.0";
+      CodeMirror.version = "5.13.2";
       return CodeMirror;
     });
   })($__require('9'));
@@ -10780,6 +10784,7 @@ $__System.register('1', ['5', '6', '7', '10', 'a', 'f'], function (_export) {
             this._editorWrapEl.className = 'editor-display';
 
             editor.cm = CodeMirror(this._editorWrapEl, {
+              lineNumbers: true,
               gutters: ["CodeMirror-linenumbers-basetext", 'CodeMirror-linenumbers-newtext'],
               readOnly: true
             });
@@ -10804,6 +10809,8 @@ $__System.register('1', ['5', '6', '7', '10', 'a', 'f'], function (_export) {
           key: 'markUpDiff',
           value: function markUpDiff(diff) {
 
+            var clean = [];
+
             var chunkStart = 0;
             var pos = Pos(0, 0);
             var gutterCorrectionBase = 0;
@@ -10815,6 +10822,25 @@ $__System.register('1', ['5', '6', '7', '10', 'a', 'f'], function (_export) {
               element.innerHTML = ln != null ? ln + 1 : '';
 
               return element;
+            }
+
+            function collapseSingle(cm, from, to) {
+              cm.addLineClass(from, "wrap", "CodeMirror-merge-collapsed-line");
+              var widget = document.createElement("span");
+              widget.className = "CodeMirror-merge-collapsed-widget";
+              widget.title = "Identical text collapsed. Click to expand.";
+              var mark = cm.markText(Pos(from, 0), Pos(to - 1), {
+                inclusiveLeft: true,
+                inclusiveRight: true,
+                replacedWith: widget,
+                clearOnEnter: true
+              });
+              function clear() {
+                mark.clear();
+                cm.removeLineClass(from, "wrap", "CodeMirror-merge-collapsed-line");
+              }
+              CodeMirror.on(widget, "click", clear);
+              return { mark: mark, clear: clear };
             }
 
             function moveOver(pos, str, copy, other) {
@@ -10855,9 +10881,33 @@ $__System.register('1', ['5', '6', '7', '10', 'a', 'f'], function (_export) {
                   tp = part[0],
                   str = part[1];
               if (tp == DIFF_EQUAL) {
+                var currenClean = {};
                 var cleanFrom = pos.line + (startOfLineClean(diff, i) ? 0 : 1);
+                currenClean.start = pos.line;
                 moveOver(pos, str);
                 var cleanTo = pos.line + (endOfLineClean(diff, i) ? 1 : 0);
+                currenClean.end = pos.line;
+                //clean.push(currenClean)
+                /*
+                   for (var i = 0; i < dv.chunks.length; i++) {
+                    var chunk = dv.chunks[i];
+                    for (var l = chunk.editFrom - margin; l < chunk.editTo + margin; l++) {
+                      var pos = l + off;
+                      if (pos >= 0 && pos < clear.length) clear[pos] = false;
+                    }
+                  }
+                 */
+                if (i == 0) {
+                  if (currenClean.end - currenClean.start > 3) currenClean.end -= 2;
+                } else if (i == diff.length - 1) {
+                  if (currenClean.end - currenClean.start > 3) currenClean.start += 2;
+                } else {
+                  if (currenClean.end - currenClean.start > 5) {
+                    currenClean.start += 2;
+                    currenClean.end -= 2;
+                  }
+                }
+                if (diff.length != 1) collapseSingle(editor.cm, currenClean.start, currenClean.end);
 
                 // Update gutter
                 for (var j = cleanFrom; j < cleanTo; j++) {
@@ -11078,14 +11128,15 @@ $__System.register('1', ['5', '6', '7', '10', 'a', 'f'], function (_export) {
 
       window.editor = editor;
       window.inlineDiff = inlineDiff;
+      window.CodeMirror = CodeMirror;
     }
   };
 });
 
-$__System.register('npm:codemirror@5.12.0/lib/codemirror.css!github:systemjs/plugin-css@0.1.20.js', [], false, function() {});
+$__System.register('npm:codemirror@5.13.2/lib/codemirror.css!github:systemjs/plugin-css@0.1.20.js', [], false, function() {});
 $__System.register('lib/inline-diff.css!github:systemjs/plugin-css@0.1.20.js', [], false, function() {});
 (function(c){if (typeof document == 'undefined') return; var d=document,a='appendChild',i='styleSheet',s=d.createElement('style');s.type='text/css';d.getElementsByTagName('head')[0][a](s);s[i]?s[i].cssText=c:s[a](d.createTextNode(c));})
-(".CodeMirror{font-family:monospace;height:300px;color:#000}.CodeMirror-lines{padding:4px 0}.CodeMirror pre{padding:0 4px}.CodeMirror-gutter-filler,.CodeMirror-scrollbar-filler{background-color:#fff}.CodeMirror-gutters{border-right:1px solid #ddd;background-color:#f7f7f7;white-space:nowrap}.CodeMirror-linenumber{padding:0 3px 0 5px;min-width:20px;text-align:right;color:#999;white-space:nowrap}.CodeMirror-guttermarker{color:#000}.CodeMirror-guttermarker-subtle{color:#999}.CodeMirror-cursor{border-left:1px solid #000;border-right:none;width:0}.CodeMirror div.CodeMirror-secondarycursor{border-left:1px solid silver}.cm-fat-cursor .CodeMirror-cursor{width:auto;border:0;background:#7e7}.cm-fat-cursor div.CodeMirror-cursors{z-index:1}.cm-animate-fat-cursor{width:auto;border:0;-webkit-animation:blink 1.06s steps(1) infinite;-moz-animation:blink 1.06s steps(1) infinite;animation:blink 1.06s steps(1) infinite;background-color:#7e7}@-moz-keyframes blink{50%{background-color:transparent}}@-webkit-keyframes blink{50%{background-color:transparent}}@keyframes blink{50%{background-color:transparent}}.cm-tab{display:inline-block;text-decoration:inherit}.CodeMirror-ruler{border-left:1px solid #ccc;position:absolute}.cm-s-default .cm-header{color:#00f}.cm-s-default .cm-quote{color:#090}.cm-negative{color:#d44}.cm-positive{color:#292}.cm-header,.cm-strong{font-weight:700}.cm-em{font-style:italic}.cm-link{text-decoration:underline}.cm-strikethrough{text-decoration:line-through}.cm-s-default .cm-keyword{color:#708}.cm-s-default .cm-atom{color:#219}.cm-s-default .cm-number{color:#164}.cm-s-default .cm-def{color:#00f}.cm-s-default .cm-variable-2{color:#05a}.cm-s-default .cm-variable-3{color:#085}.cm-s-default .cm-comment{color:#a50}.cm-s-default .cm-string{color:#a11}.cm-s-default .cm-string-2{color:#f50}.cm-s-default .cm-meta{color:#555}.cm-s-default .cm-qualifier{color:#555}.cm-s-default .cm-builtin{color:#30a}.cm-s-default .cm-bracket{color:#997}.cm-s-default .cm-tag{color:#170}.cm-s-default .cm-attribute{color:#00c}.cm-s-default .cm-hr{color:#999}.cm-s-default .cm-link{color:#00c}.cm-s-default .cm-error{color:red}.cm-invalidchar{color:red}.CodeMirror-composing{border-bottom:2px solid}div.CodeMirror span.CodeMirror-matchingbracket{color:#0f0}div.CodeMirror span.CodeMirror-nonmatchingbracket{color:#f22}.CodeMirror-matchingtag{background:rgba(255,150,0,.3)}.CodeMirror-activeline-background{background:#e8f2ff}.CodeMirror{position:relative;overflow:hidden;background:#fff}.CodeMirror-scroll{overflow:scroll!important;margin-bottom:-30px;margin-right:-30px;padding-bottom:30px;height:100%;outline:0;position:relative}.CodeMirror-sizer{position:relative;border-right:30px solid transparent}.CodeMirror-gutter-filler,.CodeMirror-hscrollbar,.CodeMirror-scrollbar-filler,.CodeMirror-vscrollbar{position:absolute;z-index:6;display:none}.CodeMirror-vscrollbar{right:0;top:0;overflow-x:hidden;overflow-y:scroll}.CodeMirror-hscrollbar{bottom:0;left:0;overflow-y:hidden;overflow-x:scroll}.CodeMirror-scrollbar-filler{right:0;bottom:0}.CodeMirror-gutter-filler{left:0;bottom:0}.CodeMirror-gutters{position:absolute;left:0;top:0;z-index:3}.CodeMirror-gutter{white-space:normal;height:100%;display:inline-block;vertical-align:top;margin-bottom:-30px}.CodeMirror-gutter-wrapper{position:absolute;z-index:4;background:0 0!important;border:none!important}.CodeMirror-gutter-background{position:absolute;top:0;bottom:0;z-index:4}.CodeMirror-gutter-elt{position:absolute;cursor:default;z-index:4}.CodeMirror-gutter-wrapper{-webkit-user-select:none;-moz-user-select:none;user-select:none}.CodeMirror-lines{cursor:text;min-height:1px}.CodeMirror pre{-moz-border-radius:0;-webkit-border-radius:0;border-radius:0;border-width:0;background:0 0;font-family:inherit;font-size:inherit;margin:0;white-space:pre;word-wrap:normal;line-height:inherit;color:inherit;z-index:2;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent}.CodeMirror-wrap pre{word-wrap:break-word;white-space:pre-wrap;word-break:normal}.CodeMirror-linebackground{position:absolute;left:0;right:0;top:0;bottom:0;z-index:0}.CodeMirror-linewidget{position:relative;z-index:2;overflow:auto}.CodeMirror-code{outline:0}.CodeMirror-gutter,.CodeMirror-gutters,.CodeMirror-linenumber,.CodeMirror-scroll,.CodeMirror-sizer{-moz-box-sizing:content-box;box-sizing:content-box}.CodeMirror-measure{position:absolute;width:100%;height:0;overflow:hidden;visibility:hidden}.CodeMirror-cursor{position:absolute}.CodeMirror-measure pre{position:static}div.CodeMirror-cursors{visibility:hidden;position:relative;z-index:3}div.CodeMirror-dragcursors{visibility:visible}.CodeMirror-focused div.CodeMirror-cursors{visibility:visible}.CodeMirror-selected{background:#d9d9d9}.CodeMirror-focused .CodeMirror-selected{background:#d7d4f0}.CodeMirror-crosshair{cursor:crosshair}.CodeMirror-line::selection,.CodeMirror-line>span::selection,.CodeMirror-line>span>span::selection{background:#d7d4f0}.CodeMirror-line::-moz-selection,.CodeMirror-line>span::-moz-selection,.CodeMirror-line>span>span::-moz-selection{background:#d7d4f0}.cm-searching{background:#ffa;background:rgba(255,255,0,.4)}.cm-force-border{padding-right:.1px}@media print{.CodeMirror div.CodeMirror-cursors{visibility:hidden}}.cm-tab-wrap-hack:after{content:''}span.CodeMirror-selectedtext{background:0 0}.CodeMirror-linenumbers-basetext,.CodeMirror-linenumbers-newtext{width:0}.delete{background-color:#FDD}.insert{background-color:#C3FFC1}.del{background-color:#FAA}.ins{background-color:#AFA}");
+(".CodeMirror{font-family:monospace;height:300px;color:#000}.CodeMirror-lines{padding:4px 0}.CodeMirror pre{padding:0 4px}.CodeMirror-gutter-filler,.CodeMirror-scrollbar-filler{background-color:#fff}.CodeMirror-gutters{border-right:1px solid #ddd;background-color:#f7f7f7;white-space:nowrap}.CodeMirror-linenumber{padding:0 3px 0 5px;min-width:20px;text-align:right;color:#999;white-space:nowrap}.CodeMirror-guttermarker{color:#000}.CodeMirror-guttermarker-subtle{color:#999}.CodeMirror-cursor{border-left:1px solid #000;border-right:none;width:0}.CodeMirror div.CodeMirror-secondarycursor{border-left:1px solid silver}.cm-fat-cursor .CodeMirror-cursor{width:auto;border:0;background:#7e7}.cm-fat-cursor div.CodeMirror-cursors{z-index:1}.cm-animate-fat-cursor{width:auto;border:0;-webkit-animation:blink 1.06s steps(1) infinite;-moz-animation:blink 1.06s steps(1) infinite;animation:blink 1.06s steps(1) infinite;background-color:#7e7}@-moz-keyframes blink{50%{background-color:transparent}}@-webkit-keyframes blink{50%{background-color:transparent}}@keyframes blink{50%{background-color:transparent}}.cm-tab{display:inline-block;text-decoration:inherit}.CodeMirror-ruler{border-left:1px solid #ccc;position:absolute}.cm-s-default .cm-header{color:#00f}.cm-s-default .cm-quote{color:#090}.cm-negative{color:#d44}.cm-positive{color:#292}.cm-header,.cm-strong{font-weight:700}.cm-em{font-style:italic}.cm-link{text-decoration:underline}.cm-strikethrough{text-decoration:line-through}.cm-s-default .cm-keyword{color:#708}.cm-s-default .cm-atom{color:#219}.cm-s-default .cm-number{color:#164}.cm-s-default .cm-def{color:#00f}.cm-s-default .cm-variable-2{color:#05a}.cm-s-default .cm-variable-3{color:#085}.cm-s-default .cm-comment{color:#a50}.cm-s-default .cm-string{color:#a11}.cm-s-default .cm-string-2{color:#f50}.cm-s-default .cm-meta{color:#555}.cm-s-default .cm-qualifier{color:#555}.cm-s-default .cm-builtin{color:#30a}.cm-s-default .cm-bracket{color:#997}.cm-s-default .cm-tag{color:#170}.cm-s-default .cm-attribute{color:#00c}.cm-s-default .cm-hr{color:#999}.cm-s-default .cm-link{color:#00c}.cm-s-default .cm-error{color:red}.cm-invalidchar{color:red}.CodeMirror-composing{border-bottom:2px solid}div.CodeMirror span.CodeMirror-matchingbracket{color:#0f0}div.CodeMirror span.CodeMirror-nonmatchingbracket{color:#f22}.CodeMirror-matchingtag{background:rgba(255,150,0,.3)}.CodeMirror-activeline-background{background:#e8f2ff}.CodeMirror{position:relative;overflow:hidden;background:#fff}.CodeMirror-scroll{overflow:scroll!important;margin-bottom:-30px;margin-right:-30px;padding-bottom:30px;height:100%;outline:0;position:relative}.CodeMirror-sizer{position:relative;border-right:30px solid transparent}.CodeMirror-gutter-filler,.CodeMirror-hscrollbar,.CodeMirror-scrollbar-filler,.CodeMirror-vscrollbar{position:absolute;z-index:6;display:none}.CodeMirror-vscrollbar{right:0;top:0;overflow-x:hidden;overflow-y:scroll}.CodeMirror-hscrollbar{bottom:0;left:0;overflow-y:hidden;overflow-x:scroll}.CodeMirror-scrollbar-filler{right:0;bottom:0}.CodeMirror-gutter-filler{left:0;bottom:0}.CodeMirror-gutters{position:absolute;left:0;top:0;min-height:100%;z-index:3}.CodeMirror-gutter{white-space:normal;height:100%;display:inline-block;vertical-align:top;margin-bottom:-30px}.CodeMirror-gutter-wrapper{position:absolute;z-index:4;background:0 0!important;border:none!important}.CodeMirror-gutter-background{position:absolute;top:0;bottom:0;z-index:4}.CodeMirror-gutter-elt{position:absolute;cursor:default;z-index:4}.CodeMirror-gutter-wrapper{-webkit-user-select:none;-moz-user-select:none;user-select:none}.CodeMirror-lines{cursor:text;min-height:1px}.CodeMirror pre{-moz-border-radius:0;-webkit-border-radius:0;border-radius:0;border-width:0;background:0 0;font-family:inherit;font-size:inherit;margin:0;white-space:pre;word-wrap:normal;line-height:inherit;color:inherit;z-index:2;position:relative;overflow:visible;-webkit-tap-highlight-color:transparent;-webkit-font-variant-ligatures:none;font-variant-ligatures:none}.CodeMirror-wrap pre{word-wrap:break-word;white-space:pre-wrap;word-break:normal}.CodeMirror-linebackground{position:absolute;left:0;right:0;top:0;bottom:0;z-index:0}.CodeMirror-linewidget{position:relative;z-index:2;overflow:auto}.CodeMirror-code{outline:0}.CodeMirror-gutter,.CodeMirror-gutters,.CodeMirror-linenumber,.CodeMirror-scroll,.CodeMirror-sizer{-moz-box-sizing:content-box;box-sizing:content-box}.CodeMirror-measure{position:absolute;width:100%;height:0;overflow:hidden;visibility:hidden}.CodeMirror-cursor{position:absolute}.CodeMirror-measure pre{position:static}div.CodeMirror-cursors{visibility:hidden;position:relative;z-index:3}div.CodeMirror-dragcursors{visibility:visible}.CodeMirror-focused div.CodeMirror-cursors{visibility:visible}.CodeMirror-selected{background:#d9d9d9}.CodeMirror-focused .CodeMirror-selected{background:#d7d4f0}.CodeMirror-crosshair{cursor:crosshair}.CodeMirror-line::selection,.CodeMirror-line>span::selection,.CodeMirror-line>span>span::selection{background:#d7d4f0}.CodeMirror-line::-moz-selection,.CodeMirror-line>span::-moz-selection,.CodeMirror-line>span>span::-moz-selection{background:#d7d4f0}.cm-searching{background:#ffa;background:rgba(255,255,0,.4)}.cm-force-border{padding-right:.1px}@media print{.CodeMirror div.CodeMirror-cursors{visibility:hidden}}.cm-tab-wrap-hack:after{content:''}span.CodeMirror-selectedtext{background:0 0}.CodeMirror-linenumbers-basetext,.CodeMirror-linenumbers-newtext{width:0}.delete{background-color:#FDD}.insert{background-color:#C3FFC1}.del{background-color:#FAA}.ins{background-color:#AFA}.CodeMirror-merge-collapsed-widget{cursor:pointer;color:#88b;background:#eef;border:1px solid #ddf;font-size:90%;padding:0 3px;border-radius:4px}.CodeMirror-merge-collapsed-widget:before{content:\"(...)\"}");
 })
 (function(factory) {
   factory();

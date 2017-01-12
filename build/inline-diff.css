@@ -1,16 +1,27 @@
 .CodeMirror-linenumbers-basetext, .CodeMirror-linenumbers-newtext {
-    width: 0px;
+  width: 0px;
 }
-
 .delete {
-    background-color: #FFDDDD;
+  background-color: #FFDDDD;
 }
 .insert {
-    background-color: #C3FFC1;
+  background-color: #C3FFC1;
 }
 .del {
-    background-color: #FFAAAA;
+  background-color: #FFAAAA;
 }
 .ins {
-    background-color: #AAFFAA;
+  background-color: #AAFFAA;
+}
+.CodeMirror-merge-collapsed-widget {
+  cursor: pointer;
+  color: #88b;
+  background: #eef;
+  border: 1px solid #ddf;
+  font-size: 90%;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+.CodeMirror-merge-collapsed-widget:before {
+  content: "(...)";
 }
