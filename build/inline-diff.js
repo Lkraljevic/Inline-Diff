@@ -16420,7 +16420,8 @@ $__System.register('1', ['5', '6', '7', '8', '19', '22', '23', 'a', 'b', 'c', 'd
 
             editor.cm = CodeMirror(this._editorWrapEl, {
               gutters: ["CodeMirror-linenumbers-basetext", 'CodeMirror-linenumbers-newtext'],
-              readOnly: true
+              readOnly: true,
+              fixedGutter: false
             });
           }
 
@@ -16562,7 +16563,7 @@ $__System.register('1', ['5', '6', '7', '8', '19', '22', '23', 'a', 'b', 'c', 'd
                   var gutterNumber = tp == DIFF_INSERT ? gutterCorrectionNew : gutterCorrectionBase;
 
                   var marked = editor.cm.addLineClass(j, 'background', tp == DIFF_INSERT ? 'insert' : 'delete');
-                  //var markedGutter = editor.cm.addLineClass(j, 'gutter', (tp == DIFF_INSERT) ? 'insert' : 'delete');
+                  var markedGutter = editor.cm.addLineClass(j, 'gutter', tp == DIFF_INSERT ? 'insert' : 'delete');
                   editor.cm.setGutterMarker(j, tp == DIFF_INSERT ? this.gutterNew : this.gutterBase, number(gutterNumber));
                   if (tp == DIFF_INSERT) gutterCorrectionNew++;else gutterCorrectionBase++;
                 }
@@ -16724,6 +16725,11 @@ $__System.register('1', ['5', '6', '7', '8', '19', '22', '23', 'a', 'b', 'c', 'd
               html[x] = diffs[x][1];
             }
             return html.join('');
+          }
+        }, {
+          key: 'setMode',
+          value: function setMode(mode) {
+            this.editor.setOptions('mode', mode);
           }
         }, {
           key: 'parentEl',
