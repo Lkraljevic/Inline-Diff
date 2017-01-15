@@ -1,10 +1,10 @@
 .CodeMirror-linenumbers-basetext, .CodeMirror-linenumbers-newtext {
   width: 0px;
 }
-.delete {
+.cm-delete {
   background-color: #FFDDDD;
 }
-.insert {
+.cm-insert {
   background-color: #C3FFC1;
 }
 .del {
